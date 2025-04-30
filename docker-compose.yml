@@ -1,0 +1,55 @@
+services:
+  db:
+    image: mysql:8.3
+    restart: always
+    container_name: mysql-db
+    env_file:
+      - .env
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS}
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./mysql/conf.d:/etc/mysql/conf.d
+
+  fastapi:
+    build: .
+    container_name: fastapi-app
+    env_file:
+      - .env
+    restart: always
+    depends_on:
+      - db
+      - rabbitmq
+      - redis
+    ports:
+      - "8080:8080"
+
+  celery_worker:
+    build: .
+    container_name: celery-worker
+    entrypoint: /usr/local/bin/entrypoint-celery.sh
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - rabbitmq
+      - redis
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+volumes:
+  db_data:
